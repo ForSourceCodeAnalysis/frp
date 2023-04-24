@@ -55,6 +55,7 @@ func LoadConf(confFile string) (err error) {
 		LogWay = tmpStr
 	}
 
+	//common项解析后，继续解析内网服务配置，可以是多个
 	// servers
 	for name, section := range conf {
 		if name != "common" {

@@ -140,7 +140,7 @@ func Join(c1 *Conn, c2 *Conn) {
 			log.Warn("join conns error, %v", err)
 		}
 	}
-
+	//隧道的精髓，直接创建两个协程，利用io.Copy在两个连接间传递数据
 	wait.Add(2)
 	go pipe(c1, c2)
 	go pipe(c2, c1)

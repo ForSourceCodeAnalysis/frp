@@ -15,7 +15,7 @@ func main() {
 	}
 
 	log.InitLog(client.LogWay, client.LogFile, client.LogLevel)
-
+	//服务可以有多个，所以这里使用了WaitGroup
 	// wait until all control goroutine exit
 	var wait sync.WaitGroup
 	wait.Add(len(client.ProxyClients))

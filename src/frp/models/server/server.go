@@ -41,14 +41,20 @@ func (p *ProxyServer) Unlock() {
 
 // start listening for user conns
 func (p *ProxyServer) Start() (err error) {
-	p.Init()
-	p.listener, err = conn.Listen(p.BindAddr, p.ListenPort)
+	p.Init()                                                //这里又重新初始化了一下，根据提交信息，是为了修复frp client断掉重连无法正常运行的bug
+	p.listener, err = conn.Listen(p.BindAddr, p.ListenPort) //创建代理服务
 	if err != nil {
 		return err
 	}
 
 	p.Status = consts.Working
 
+	//这个协程监听到用户连接后，并没有进行处理，只是简单的把连接压到列表中，然后通过通道（p.ctlMsgChan <- 1）触发了另一个协程
+	//具体就是：
+	//1.frps.control.controlWorker主循环通道监听到用户连接
+	//2.触发frpc发起新的连接
+	//3.frps.control.controlWorker.checkProxy接收到新的连接
+	//4.通过通道（<-p.cliConnChan）触发本函数的第二个协程
 	// start a goroutine for listener to accept user connection
 	go func() {
 		for {
@@ -73,7 +79,7 @@ func (p *ProxyServer) Start() (err error) {
 			p.Unlock()
 
 			// put msg to control conn
-			p.ctlMsgChan <- 1
+			p.ctlMsgChan <- 1 //触发用户连接处理协程
 
 			// set timeout
 			time.AfterFunc(time.Duration(UserConnTimeout)*time.Second, func() {
@@ -92,6 +98,7 @@ func (p *ProxyServer) Start() (err error) {
 		}
 	}()
 
+	//这个协程的作用就比较简单明了，创建用户连接和frpc连接之间的隧道
 	// start another goroutine for join two conns from client and user
 	go func() {
 		for {

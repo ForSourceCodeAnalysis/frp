@@ -1,0 +1,62 @@
+@startuml frp
+title frp代码执行流程v0.1.0
+actor user order 1
+
+participant frps order 10
+
+
+collections frpc order 70
+participant localServer order 80
+
+autonumber
+
+== frps,frpc初始化并建立连接 ==
+frps -> frps:初始化配置
+create control "监听frpc\n连接服务协程" as listenFrpcConnServer order 20
+frps -> listenFrpcConnServer:create
+activate frps
+frps -> frps:Loop
+
+frpc -> frpc: 初始化配置
+frpc -> frpc: 根据配置可以启动多个协程\n每个协程，代理一个本地服务\n都会执行下面的流程
+frpc -> listenFrpcConnServer: 建立连接
+listenFrpcConnServer -> frps: channel传递
+create control "frpc连接\n处理协程" as dealConnCor order 30
+frps -> dealConnCor:create
+create control "frps代理服务协程\n（监听用户连接）" as frpsProxy order 40
+dealConnCor -> frpsProxy:create
+create control "frps处理用户\n连接协程(压栈)" as frpsDealUserConn1 order 41
+dealConnCor -> frpsDealUserConn1:create
+create control "frps处理用户\n连接协程(出栈)" as frpsDealUserConn2 order 42
+dealConnCor -> frpsDealUserConn2:create
+create control "frps心跳处理协程" as frpsHeartbeat order 50
+dealConnCor -> frpsHeartbeat:create
+activate dealConnCor
+dealConnCor -> dealConnCor:Loop
+create control "frpc心跳协程" as frpcHeartbeat order 71
+frpc -> frpcHeartbeat:create
+frpcHeartbeat -> frpsHeartbeat:send
+frpsHeartbeat -> frpcHeartbeat:reponse
+activate frpc
+frpc -> frpc:Loop
+
+== 用户访问内网服务 ==
+user -> frpsProxy:访问服务
+frpsProxy -> frpsDealUserConn1:channel传递
+frpsDealUserConn1 -> dealConnCor:channel传递
+dealConnCor -> frpc:转发用户请求信息
+frpc -> localServer:建立连接
+frpc -> listenFrpcConnServer:建立连接
+listenFrpcConnServer -> frps: channel传递
+create control "frpc连接\n处理协程2" as dealConnCor2 order 31
+frps -> dealConnCor2:create
+dealConnCor2 -> frpsDealUserConn2:channel传递
+create control "隧道：用户连接<->(frps<->frpc)" as tunnel1 order 51
+frpsDealUserConn2 -> tunnel1:create
+create control "隧道：(frps<->frpc)<->localServer" as tunnel2 order 52
+frpc -> tunnel2:create
+== 虚拟通道 ==
+user <--> tunnel1
+tunnel1 <--> tunnel2
+tunnel2 <--> localServer
+@enduml

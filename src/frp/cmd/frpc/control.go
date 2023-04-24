@@ -17,9 +17,13 @@ import (
 var connection *conn.Conn = nil
 var heartBeatTimer *time.Timer = nil
 
+// frp client主要就做了三件事
+// 1.与frps建立连接
+// 2.创建心跳协程，并在主循环中处理心跳回复
+// 3.处理frps转发的用户请求信息
 func ControlProcess(cli *client.ProxyClient, wait *sync.WaitGroup) {
 	defer wait.Done()
-
+	//与frps建立连接并创建心跳协程
 	c, err := loginToServer(cli)
 	if err != nil {
 		log.Error("ProxyName [%s], connect to server failed!", cli.Name)
@@ -27,7 +31,7 @@ func ControlProcess(cli *client.ProxyClient, wait *sync.WaitGroup) {
 	}
 	connection = c
 	defer connection.Close()
-
+	//主循环，处理心跳回复信息，frps转发的用户信息
 	for {
 		// ignore response content now
 		content, err := connection.ReadLine()
@@ -61,6 +65,7 @@ func ControlProcess(cli *client.ProxyClient, wait *sync.WaitGroup) {
 			log.Warn("Parse err: %v : %s", err, content)
 			continue
 		}
+		//心跳信息
 		if consts.SCHeartBeatRes == clientCtlRes.GeneralRes.Code {
 			if heartBeatTimer != nil {
 				log.Debug("Client rcv heartbeat response")
@@ -70,11 +75,12 @@ func ControlProcess(cli *client.ProxyClient, wait *sync.WaitGroup) {
 			}
 			continue
 		}
-
+		//处理frps转发的用户请求信息
 		cli.StartTunnel(client.ServerAddr, client.ServerPort)
 	}
 }
 
+// 与frps创建连接，并启动心跳协程
 func loginToServer(cli *client.ProxyClient) (c *conn.Conn, err error) {
 	c, err = conn.ConnectServer(client.ServerAddr, client.ServerPort)
 	if err != nil {
@@ -83,7 +89,7 @@ func loginToServer(cli *client.ProxyClient) (c *conn.Conn, err error) {
 	}
 
 	req := &msg.ClientCtlReq{
-		Type:      consts.CtlConn,
+		Type:      consts.CtlConn, //消息类型是CtlConn，server端接收到这个信息，会启动代理服务
 		ProxyName: cli.Name,
 		Passwd:    cli.Passwd,
 	}

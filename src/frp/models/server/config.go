@@ -55,7 +55,7 @@ func LoadConf(confFile string) (err error) {
 		LogWay = tmpStr
 	}
 
-	// servers
+	// servers 上面已经把common的配置解析完了，下面是解析非common部分
 	for name, section := range conf {
 		if name != "common" {
 			proxyServer := &ProxyServer{}

@@ -29,7 +29,8 @@ func (p *ProxyClient) GetRemoteConn(addr string, port int64) (c *conn.Conn, err 
 			c.Close()
 		}
 	}()
-
+	//这次连接是为了建立隧道
+	//frpc除了启动时会主动和frps连接外，还会在收到frps转发的用户请求信息时再次和frps连接
 	c, err = conn.ConnectServer(addr, port)
 	if err != nil {
 		log.Error("ProxyName [%s], connect to server [%s:%d] error, %v", p.Name, addr, port, err)
@@ -37,7 +38,7 @@ func (p *ProxyClient) GetRemoteConn(addr string, port int64) (c *conn.Conn, err 
 	}
 
 	req := &msg.ClientCtlReq{
-		Type:      consts.WorkConn,
+		Type:      consts.WorkConn, //这次的消息类型是WorkConn，frps收到这个类型的消息会在用户连接，frps与frpc连接之间建立隧道
 		ProxyName: p.Name,
 		Passwd:    p.Passwd,
 	}
@@ -53,6 +54,7 @@ func (p *ProxyClient) GetRemoteConn(addr string, port int64) (c *conn.Conn, err 
 	return
 }
 
+// 创建隧道，本地连接和远程连接之间
 func (p *ProxyClient) StartTunnel(serverAddr string, serverPort int64) (err error) {
 	localConn, err := p.GetLocalConn()
 	if err != nil {
